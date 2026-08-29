@@ -1,81 +1,99 @@
-import streamlit as st
+import hashlib
 import os
 import uuid
+from datetime import date
+import streamlit as st
 
-from database.report_model import create_report
-from ocr.extractor import extract_text
-UPLOAD_FOLDER = "uploads"
+from database.report_model import create_report, save_test_results
+from ocr.gemini_extractor import extract_report
+from ocr.validator import validate_and_normalize
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-def upload_page():
+def detect_report_type(tests):
+    names = " ".join((x.get("test_name") or "").lower() for x in tests)
+    if any(k in names for k in ["hemoglobin", "rbc", "mch", "mchc", "platelet", "wbc", "neutrophil"]):
+        return "CBC"
+    if any(k in names for k in ["glucose", "blood sugar", "fasting sugar", "random sugar", "hba1c"]):
+        return "Blood Sugar"
+    if any(k in names for k in ["cholesterol", "triglyceride", "ldl", "hdl"]):
+        return "Lipid Profile"
+    if any(k in names for k in ["alt", "ast", "bilirubin", "alkaline phosphatase", "alp"]):
+        return "Liver Function Test"
+    if any(k in names for k in ["creatinine", "urea", "egfr", "uric acid"]):
+        return "Kidney Function Test"
+    if any(k in names for k in ["tsh", "t3", "t4", "thyroxine"]):
+        return "Thyroid Profile"
+    return "Other"
 
-    st.title("📤 Upload Medical Report")
 
-    report_type = st.selectbox(
-        "Report Type",
-        [
-            "CBC",
-            "Blood Sugar",
-            "Lipid Profile",
-            "Liver Function Test",
-            "Kidney Function Test",
-            "Thyroid Profile",
-            "Other"
-        ]
+def upload_section():
+    st.markdown(
+        """<div class="guide-card"><b>📷</b><div><h3 style="margin:0">Upload a clear report</h3>
+        <p style="margin:6px 0 0">JPG, PNG and PDF are supported. A clear, straight image gives the AI the best chance of reading every row.</p>
+        </div></div>""",
+        unsafe_allow_html=True,
     )
 
-    hospital = st.text_input("Hospital / Laboratory")
-
-    report_date = st.date_input("Report Date")
-
-    uploaded_file = st.file_uploader(
-        "Upload Report",
-        type=["pdf", "png", "jpg", "jpeg"]
+    uploaded = st.file_uploader(
+        "Choose your laboratory report",
+        type=["png", "jpg", "jpeg", "pdf"],
+        help="Maximum 10 MB. Clear images work best.",
+        key="onepage_upload",
     )
+    if not uploaded:
+        return
 
-    if st.button("Upload Report"):
+    if uploaded.size > 10 * 1024 * 1024:
+        st.error("Maximum file size is 10 MB.")
+        return
 
-        if uploaded_file is None:
-            st.error("Please select a report.")
-            return
+    raw = uploaded.getvalue()
+    signature = hashlib.sha256(raw).hexdigest()
+    if st.session_state.get("processed_upload_signature") == signature:
+        st.success("This report has already been processed in this session.")
+        return
 
-        # File size limit (10 MB)
-        if uploaded_file.size > 10 * 1024 * 1024:
-            st.error("Maximum file size is 10 MB.")
-            return
+    ext = os.path.splitext(uploaded.name)[1].lower()
+    path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}{ext}")
 
-        extension = uploaded_file.name.split(".")[-1]
+    try:
+        with open(path, "wb") as f:
+            f.write(raw)
 
-        filename = f"{uuid.uuid4()}.{extension}"
+        with st.status("Analyzing your report…", expanded=True) as status:
+            st.write("Reading the report with Gemini Vision…")
+            extracted = extract_report(path)
+            tests = validate_and_normalize(extracted.get("tests", []))
+            report_type = detect_report_type(tests)
+            hospital = (extracted.get("hospital_name") or "").strip()
+            report_date = extracted.get("report_date") or str(date.today())
 
-        save_path = os.path.join(
-            UPLOAD_FOLDER,
-            filename
-        )
+            user = st.session_state["user"]
+            report_id = create_report(
+                user["id"], report_type, hospital, report_date, path
+            )
+            save_test_results(report_id, tests)
 
-        with open(save_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+            st.write(f"Detected {len(tests)} result row(s).")
+            if tests:
+                status.update(label="Report saved successfully", state="complete")
+            else:
+                status.update(label="Report saved, but no numeric test rows were recognized", state="complete")
 
-        user = st.session_state["user"]
+        st.session_state["processed_upload_signature"] = signature
+        st.session_state["last_uploaded_report_id"] = report_id
+        st.success(f"Report uploaded successfully. Report ID: {report_id}")
+        if not tests:
+            st.warning("No recognizable test results were found. The image was saved, but the report needs a clearer image or a supported layout.")
+        st.rerun()
 
-        report_id = create_report(
-            user["id"],
-            report_type,
-            hospital,
-            str(report_date),
-            save_path
-        )
-
-        st.success("Report uploaded successfully!")
-
-        st.info(f"Report ID: {report_id}")
-        text = extract_text(save_path)
-
-st.subheader("📄 Extracted Text")
-
-st.text_area(
-    "OCR Output",
-    st.text,
-    height=300
-)
+    except Exception as exc:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        st.error(f"Extraction failed: {exc}")

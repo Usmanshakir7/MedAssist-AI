@@ -1,22 +1,44 @@
 import streamlit as st
+from datetime import datetime
+
 from database.user_model import login_user
+from database.google_sheets import update_last_login
 
 
 def login_page():
+    st.markdown("### 🔐 Login")
 
-    st.title("🔐 Login")
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("Email", placeholder="you@example.com")
+        password = st.text_input("Password", type="password", placeholder="••••••••")
+        submitted = st.form_submit_button(
+            "Login",
+            type="primary",
+            use_container_width=True,
+        )
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+        if submitted:
+            if not email or not password:
+                st.error("Please enter both email and password.")
+                return
 
-    if st.button("Login"):
+            clean_email = email.strip().lower()
+            success, result = login_user(clean_email, password)
 
-        success, result = login_user(email, password)
+            if success:
+                st.session_state.logged_in = True
+                st.session_state.user = dict(result)
 
-        if success:
-         st.session_state.logged_in = True
-         st.session_state.user = dict(result)
-         st.rerun()
+                # Google Sheets is only a secondary activity log.
+                # Login still works if Sheets is unavailable.
+                try:
+                    update_last_login(
+                        clean_email,
+                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                except Exception:
+                    pass
 
-        else:
-            st.error(result)
+                st.rerun()
+            else:
+                st.error(result)
