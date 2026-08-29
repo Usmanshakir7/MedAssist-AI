@@ -158,37 +158,52 @@ def generate_insights(
     # --------------------------------------------------------
     
     if language == "Urdu":
-     language_rules = """
-Write BOTH SUMMARY and RECOMMENDATION in clear, natural, fluent Urdu.
- When language is Urdu, follow the Urdu writing rules strictly and produce clean, readable sentences.
+        language_rules = """
+Write BOTH SUMMARY and RECOMMENDATION in clear,
+natural, fluent Urdu.
+
 STRICT URDU WRITING RULES:
 
 1. Write complete, grammatical Urdu sentences.
-2. Translate status words fully:
+2. Translate:
    - High → زیادہ
    - Low → کم
    - Normal → نارمل
    - Cannot assess → جائزہ نہیں لیا جا سکتا
-3. NEVER write the English words High, Low, Normal.
-4. NEVER put English words in parentheses.
-5. Keep laboratory test names in urdu (do not translate them).
-6. Place the urdu test names naturally inside the Urdu sentence.
-7. Prefer this clean structure:
-
-   "آپ کی لیبارٹری رپورٹ میں [Test1]، [Test2] اور [Test3] زیادہ ہیں۔
-    [Test4] کم ہے۔
-    [Test5] کا فیصد کم ہے لیکن Absolute [Test5] نارمل ہیں۔
-    [Test6]، [Test7] اور [Test8] نارمل ہیں۔"
-
-8. Group findings clearly:
-   - First mention all High results together
-   - Then all Low results
-   - Then explain any percentage vs absolute difference
-   - Finally mention important Normal results briefly
-
-9. Do not reverse word order. Keep logical sentence flow.
-10. Avoid long, complicated mixed sentences.
+3. NEVER write High, Low, or Normal in English.
+4. NEVER put English translations in parentheses.
+5. Keep laboratory test names as provided.
+6. Group findings:
+   - High results first
+   - Low results second
+   - Percentage vs absolute-count differences third
+   - Important Normal results last
+7. Keep sentences short and easy to understand.
 """
+    elif language == "English":
+        language_rules = """
+Write BOTH SUMMARY and RECOMMENDATION in clear,
+simple, patient-friendly English.
+
+STRICT ENGLISH WRITING RULES:
+
+1. Use complete and grammatical English sentences.
+2. Use Normal, Low, High, and Cannot assess appropriately.
+3. Focus mainly on important abnormal findings.
+4. Keep the explanation short and easy to understand.
+5. Do not repeat exact laboratory values.
+6. Do not repeat reference ranges.
+7. Do not diagnose diseases.
+8. Do not prescribe medication.
+9. Keep the explanation educational and cautious.
+"""
+    else:
+        language_rules = """
+Use clear and simple English.
+Do not diagnose diseases or prescribe medication.
+Focus on explaining the supplied laboratory result statuses.
+"""
+
     # --------------------------------------------------------
     # PROMPT
     # --------------------------------------------------------
