@@ -65,7 +65,7 @@ def upload_section():
             f.write(raw)
 
         with st.status("Analyzing your report…", expanded=True) as status:
-            st.write("Reading the report with Gemini Vision…")
+            st.write("Reading the report with MedAssist Vision…")
             extracted = extract_report(path)
             tests = validate_and_normalize(extracted.get("tests", []))
             report_type = detect_report_type(tests)
