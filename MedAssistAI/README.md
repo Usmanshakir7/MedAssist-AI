@@ -1,6 +1,6 @@
 # MedAssistAI 🩺
 
-**An AI-powered laboratory report workspace built with Python, Streamlit, and Google Gemini.**
+**An AI-powered medical laboratory report organizer and educational explainer built with Python, Streamlit, SQLite, and Google Gemini.**
 
 MedAssistAI helps users upload laboratory reports, review extracted results, track test history, and read easy-to-understand educational explanations in **English or Urdu**.
 
@@ -12,11 +12,12 @@ MedAssistAI helps users upload laboratory reports, review extracted results, tra
 - **Multiple report categories:** Detects CBC, blood sugar, lipid profile, liver function, kidney function, and thyroid reports from extracted test names; other reports are labeled *Other*.
 - **Result classification:** Displays **Normal**, **High**, **Low**, or **Unknown** using available report reference ranges. Missing or unclear data must not be guessed.
 - **Personal report history:** User signup/login, saved reports, result tables, CSV downloads, and report deletion.
+- **One-page Streamlit experience:** Upload, reports, charts, AI Insights, and account settings are displayed in a continuous scrollable workspace.
 - **Interactive dashboard:** Summary statistics, status breakdown, and trends for tests appearing across saved reports.
 - **Bilingual AI Insights:** Generates a patient-friendly report summary and general guidance in **English or Urdu**. The current prompt focuses on result statuses rather than repeating numerical values.
 - **Urdu dietary guidance:** Optional general food suggestions and a home recipe, explicitly **not a treatment or cure**.
 - **Optional Google Sheets sync:** Synchronizes account metadata such as user ID, name, email, creation time, and last login when configured; not passwords.
-- **Continuous Streamlit workspace:** Home, Upload, Reports, Dashboard, AI Insights, and Settings, with sidebar navigation.
+- **Account settings and export:** Change name or password, and export account report data in CSV or JSON format.
 
 ## How it works
 
@@ -33,7 +34,7 @@ flowchart TD
     H --> J[Optional Urdu dietary suggestions]
 ```
 
-**Note:** The extractor processes the **first page** of an uploaded PDF in the current implementation. Review extracted values against the original report; AI extraction can make mistakes.
+**Current limitation:** The active Gemini extractor renders and processes only the **first page of a PDF**. Uploading does **not** currently require a manual confirmation step: extracted rows are saved automatically, so the user must review the resulting report table against the source image. AI extraction and classification can be wrong.
 
 ## Tech stack
 
@@ -52,7 +53,7 @@ flowchart TD
 
 ## Project structure
 
-The application currently lives in the **`MedAssistAI/`** subdirectory of this GitHub repository.
+The repository root README provides an overview; this file documents the implementation in more detail. The application currently lives in the **`MedAssistAI/`** subdirectory of this GitHub repository.
 
 ```text
 MedAssist-AI/
@@ -143,18 +144,21 @@ AI-generated summaries, recipes, and suggested follow-up are **informational onl
 
 ## Privacy and limitations
 
+- **Prototype, not a production clinical system:** do not deploy for real patient care without a security, privacy, and clinical validation review.
 - Uploaded reports and medical test results are sensitive personal information. Use sample or appropriately de-identified data during development.
 - Images and extracted information are sent to the configured Gemini service for processing. Review the provider's data handling terms before using real patient reports.
 - The current application stores files and its SQLite database locally; it is **not presented as production-grade clinical infrastructure**.
 - Keep `.env`, `.streamlit/secrets.toml`, service-account JSON, `*.db`, and contents of `uploads/` **out of Git commits**.
 - Verify extracted values against the original report. Document scanning, missing ranges, age-specific ranges, and incorrect classifications can affect output.
 - The current PDF extractor only reads the first page.
+- Statuses are computed from extracted numerical values and reference bounds, not from full clinical context; age/sex-specific intervals and open-ended bounds may need more careful handling.
+- The upload flow saves extracted results automatically without a required correction step.
 - The README describes the code in this repository; local changes not yet pushed may differ.
 
 ## Future improvements
 
 - Multi-page PDF processing and stronger extraction quality checks.
-- User confirmation/correction of extracted values before saving.
+- User confirmation/correction of extracted values **before** saving (not yet implemented).
 - More robust handling of age-, sex-, and lab-specific reference ranges.
 - Automated tests and security hardening for deployment.
 - Better accessibility and Urdu-language presentation.
